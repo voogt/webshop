@@ -1,9 +1,17 @@
+
 <!-- Payment -->
 {% if cart_settings.enable_checkout or cart_settings.show_price_in_quotation %}
 <h6>
 	{{ _("Payment Summary") }}
 </h6>
 {% endif %}
+
+<style>
+    .frappe-control .dropdown-menu {
+        max-height: 200px; /* Adjust as per your need */
+        overflow-y: auto; /* Add vertical scroll if needed */
+    }
+</style>
 
 <div class="card h-100">
 	<div class="card-body p-0">
@@ -51,6 +59,19 @@
 				</tr>
 			</table>
 		{% endif %}
+
+		{% if cart_settings.enable_checkout %}
+			<button id="place-order-button" class="btn btn-primary btn-place-order font-md w-100" type="button">
+				{{ _('Place Order') }}
+			</button>
+			<button id="get-quote-button" class="btn btn-primary font-md w-100" style="display: none;" type="button" onclick="return false;">
+				{{ _('Request for Quote') }}
+			</button>
+		{% else %}
+			<button class="btn btn-primary btn-request-for-quotation font-md w-100" type="button">
+				{{ _('Request for Quote') }}
+			</button>
+		{% endif %}
 	</div>
 </div>
 
@@ -72,3 +93,250 @@
 		});
 	});
 </script> -->
+<script>
+    frappe.ready(() => {
+    const currentUrl = window.location.href;
+    const quoteButton = document.getElementById('get-quote-button');
+
+    if (currentUrl.includes('staging') || currentUrl.includes('localhost')) {
+        if (quoteButton) {
+            quoteButton.style.display = 'block';
+        }
+    }
+
+    $('#get-quote-button, .btn-request-for-quotation').click(() => {
+        const cartData = {{ doc | json }}; // Assuming 'doc' contains cart data
+
+        // Fetch the list of countries from ERPNext
+        frappe.call({
+            method: 'frappe.client.get_list',
+            args: {
+                doctype: 'Country',
+                fields: ['country_name']
+            },
+            callback: function(response) {
+                const countries = response.message.map(country => country.country_name);
+
+                // Create a dialog after fetching countries
+                const d = new frappe.ui.Dialog({
+                    title: __('Create Quote'),
+                    fields: [
+                        {
+                            fieldname: 'recipient_type',
+                            fieldtype: 'Select',
+                            label: __('Recipient Type'),
+                            reqd: 1,
+                            options: ['Private', 'Business'],
+                            default: 'Private'
+                        },
+                        {
+                            fieldname: 'recipient_name',
+                            fieldtype: 'Data',
+                            label: __('Recipient Name'),
+                            reqd: 1
+                        },
+                        {
+                            fieldname: 'recipient_email',
+                            fieldtype: 'Data',
+                            label: __('Recipient Email'),
+                            reqd: 1,
+                            options: 'Email'
+                        },
+                        {
+                            fieldname: 'contact_phone',
+                            fieldtype: 'Data',
+                            label: __('Contact Phone No'),
+                            reqd: 1
+                        },
+                        {
+                            fieldname: 'address',
+                            fieldtype: 'Text',
+                            label: __('Address'),
+                            reqd: 1,
+                            placeholder: __('Enter the recipient\'s address')
+                        },
+                        {
+                            label: __('Country'),
+                            fieldname: 'country',
+                            fieldtype: 'Link',
+                            options: 'Country',
+                            only_select: true,
+                            reqd: 1
+                        },
+                        {
+                            fieldname: 'tax_id',
+                            fieldtype: 'Data',
+                            label: __('Tax ID'),
+                            placeholder: __('Enter the recipient\'s tax ID'),
+                            depends_on: 'eval: doc.recipient_type == "Business"',
+                            reqd: 0 // Will be set dynamically
+                        },
+                        {
+                            fieldname: 'message',
+                            fieldtype: 'Small Text',
+                            label: __('Message'),
+                            placeholder: __('Optional message for the recipient')
+                        }
+                    ],
+                    primary_action_label: __('Create Quote'),
+                    primary_action(values) {
+                        // Validate email
+                        if (!validateEmail(values.recipient_email)) {
+                            frappe.msgprint(__('Please enter a valid email address.'));
+                            return;
+                        }
+
+                        // Ensure Tax ID is provided if recipient type is Business
+                        if (values.recipient_type === 'Business' && !values.tax_id) {
+                            frappe.msgprint(__('Tax ID is mandatory for Business recipients.'));
+                            return;
+                        }
+
+                        // Determine the tax template based on the country
+                        let tax_template = null;
+                        if (values.country === 'South Africa') {
+                            tax_template = 'South Africa Tax - K';
+                        }
+
+                        // Call server-side method to get or create customer
+                        frappe.call({
+                            method: 'kartoza_custom.api.get_or_create_customer',
+                            args: {
+                                recipient_name: values.recipient_name,
+                                recipient_email: values.recipient_email,
+                                contact_phone: values.contact_phone,
+                                address: values.address,
+                                tax_id: values.recipient_type === 'Business' ? values.tax_id : null,
+                            },
+                            callback: function(response) {
+                                const customer_name = response.message.customer_name;
+                                create_quotation(customer_name, values, cartData, tax_template, values.country);
+                            }
+                        });
+                    }
+                });
+
+                // Watch for recipient type changes
+                d.fields_dict.recipient_type.$wrapper.on('change', () => {
+                    const recipientType = d.get_value('recipient_type');
+                    d.set_df_property('tax_id', 'reqd', recipientType === 'Business');
+                    d.refresh();
+                });
+
+                d.show();
+            }
+        });
+    });
+
+    function create_quotation(customer_name, values, cartData, tax_template, country) {
+		const quotationData = {
+			doctype: 'Quotation',
+			quotation_to: 'Customer',
+			owner: frappe.session.user,
+			party_name: customer_name,
+			order_type: "Shopping Cart",
+			status: "Draft",
+			contact_email: values.recipient_email,
+			contact_mobile: values.contact_phone,
+			address: values.address,
+			tax_id: values.tax_id,
+			items: cartData.items,
+			message_for_recipient: values.message,
+			company: "Kartoza (Pty) Ltd"
+		};
+
+		// Create the Quotation
+		frappe.call({
+		method: 'frappe.client.insert',
+		args: {
+			doc: quotationData
+		},
+		callback: function(response) {
+			if (response.message) {
+				const quotation = response.message;
+
+				if(country == "South Africa"){
+					// Fetch the created quotation to manually add tax lines
+					frappe.call({
+						method: 'frappe.client.get',
+						args: {
+							doctype: 'Quotation',
+							name: quotation.name
+						},
+						callback: function(get_response) {
+							const updated_quotation = get_response.message;
+
+							// Manually add tax lines (if not added automatically by the template)
+							if (!updated_quotation.taxes || updated_quotation.taxes.length === 0) {
+								updated_quotation.taxes = [{
+									charge_type: "On Net Total",  // Change as per your tax rules
+									account_head: "2604 - VAT Payable - K",  // Set the correct tax account
+									rate: 15.0,  // Example tax rate (adjust accordingly)
+									description: "VAT 15%",
+									included_in_print_rate: 0,
+									cost_center: "Main - K"  // Set the appropriate cost center
+								}];
+							}
+
+							// Save the updated quotation with taxes
+							frappe.call({
+								method: 'frappe.client.save',
+								args: {
+									doc: updated_quotation
+								},
+								callback: function(save_response) {
+									frappe.msgprint(__('Quotation has been created successfully.'));
+									const quotation_url = '/proforma-quotations/' + updated_quotation.name;
+									window.location.href = quotation_url;
+								}
+							});
+						}
+					});
+				}
+
+				else{
+					frappe.msgprint(__('Quotation has been created successfully.'));
+					const quotation_url = '/proforma-quotations/' + quotation.name;
+					window.location.href = quotation_url;
+				}
+			}
+		}
+	});
+	}
+
+    function validateEmail(email) {
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailPattern.test(email);
+    }
+});
+
+</script>
+
+<script>
+	// Function to remove the element with id "freeze" if it exists
+	function removeFreezeElement() {
+		const freezeElement = document.getElementById('freeze');
+		if (freezeElement) {
+			freezeElement.remove();
+		}
+	}
+
+	// Create an observer instance linked to the callback function
+	const observer = new MutationObserver((mutationsList) => {
+		for (const mutation of mutationsList) {
+			if (mutation.type === 'childList') {
+				removeFreezeElement();
+			}
+		}
+	});
+
+	// Options for the observer (which mutations to observe)
+	const config = { childList: true, subtree: true };
+
+	// Start observing the document body for configured mutations
+	observer.observe(document.body, config);
+
+	// Initial check in case the element already exists when the script runs
+	removeFreezeElement();
+
+</script>
