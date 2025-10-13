@@ -96,6 +96,7 @@ webshop.ProductList = class {
 	}
 
 	get_item_details(item, settings) {
+		console.log("ITEM", item);
 		let details = `
 			<p class="product-code">
 				${ item.item_group } | Item Code : ${ item.item_code }
