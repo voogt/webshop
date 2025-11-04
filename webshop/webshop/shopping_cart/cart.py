@@ -154,6 +154,7 @@ def request_for_quotation():
 
 @frappe.whitelist()
 def update_cart(item_code, qty, additional_notes=None, with_items=False):
+	print("ADDING TO CART")
 	quotation = _get_cart_quotation()
 
 	empty_card = False
@@ -412,7 +413,54 @@ def _get_cart_quotation(party=None):
 		qdoc.run_method("set_missing_values")
 		apply_cart_settings(party, qdoc)
 
+	# ensure contact person (if any) actually belongs to the party to avoid validation errors
+	_ensure_contact_person_for_party(qdoc, party)
 	return qdoc
+
+
+def _ensure_contact_person_for_party(quotation, party=None):
+	"""Ensure Quotation.contact_person (if set) belongs to the given party.
+
+	If it doesn't, clear it. If it's not set, try to set a suitable contact linked
+	to the party based on the current session user's email. This prevents
+	validation errors like: "Contact Person does not belong to the <Party>".
+	"""
+	if not party:
+		party = get_party()
+
+	# Nothing to do if we don't have a party
+	if not party:
+		return
+
+	contact_person = quotation.get("contact_person")
+
+	def _is_contact_linked_to_party(contact_name: str) -> bool:
+		return bool(
+			frappe.db.exists(
+				"Dynamic Link",
+				{
+					"parenttype": "Contact",
+					"parent": contact_name,
+					"link_doctype": party.doctype,
+					"link_name": party.name,
+				},
+			)
+		)
+
+	# If a contact is set, verify it's actually linked to the party; otherwise clear it.
+	if contact_person:
+		if not _is_contact_linked_to_party(contact_person):
+			quotation.contact_person = None
+		return
+
+	# If not set, try to choose a contact for the logged-in user that belongs to the party
+	user_email = getattr(frappe.session, "user", None)
+	if not user_email:
+		return
+
+	contact_name = frappe.db.get_value("Contact", {"email_id": user_email})
+	if contact_name and _is_contact_linked_to_party(contact_name):
+		quotation.contact_person = contact_name
 
 
 def update_party(fullname, company_name=None, mobile_no=None, phone=None):
