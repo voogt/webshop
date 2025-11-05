@@ -28,6 +28,8 @@ class ItemConfigure {
 			};
 		});
 
+		console.log(fields);
+
 		this.dialog = new frappe.ui.Dialog({
 			title: __('Select Variant for {0}', [this.item_name]),
 			fields,

@@ -176,8 +176,13 @@ $.extend(shopping_cart, {
 	set_cart_count: function(animate=false) {
 		$(".intermediate-empty-cart").remove();
 
-		var cart_count = frappe.get_cookie("cart_count");
-		if(frappe.session.user==="Guest") {
+		// Read cart count from cookie; if unavailable during async updates, fall back to DOM rows
+		var cart_count_cookie = frappe.get_cookie("cart_count");
+		var cart_count = parseInt(cart_count_cookie, 10);
+		if (isNaN(cart_count)) {
+			cart_count = $(".cart-items tr").length || 0;
+		}
+		if (frappe.session.user === "Guest") {
 			cart_count = 0;
 		}
 
@@ -187,6 +192,7 @@ $.extend(shopping_cart, {
 
 		var $cart = $('.cart-icon');
 		var $badge = $cart.find("#cart-count");
+		console.log("cart_count:", cart_count);
 
 		if(parseInt(cart_count) === 0 || cart_count === undefined) {
 			$cart.css("display", "none");
@@ -202,8 +208,13 @@ $.extend(shopping_cart, {
 			$(".cart-table").after(intermediate_empty_cart_msg);
 		}
 		else {
+			console.log("show cart");
 			$cart.css("display", "inline");
 			$("#cart-count").text(cart_count);
+			// Ensure previously hidden sections are shown again when cart has items
+			$(".cart-tax-items").show();
+			$(".btn-place-order").show();
+			$(".cart-payment-addresses").show();
 		}
 
 		if(cart_count) {

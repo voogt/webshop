@@ -2,7 +2,7 @@
 
 {% block title %} {{ _("Shopping Cart") }} {% endblock %}
 
-{% block header %}<h3 class="shopping-cart-header mt-2 mb-6">{{ _("Shopping Cart") }}</h1>{% endblock %}
+{% block header %}<h3 class="shopping-cart-header mt-2 mb-6">{{ _("Shopping Cart") }}</h3>{% endblock %}
 
 {% block header_actions %}
 {% endblock %}
@@ -10,6 +10,31 @@
 {% block page_content %}
 
 {% from "templates/includes/macros.html" import item_name_and_description %}
+
+{% block style %}
+<style>
+/* Mobile responsiveness tweaks for cart page */
+@media (max-width: 576px) {
+	.cart-container .frappe-card { padding: 1.25rem !important; }
+	.cart-items-header { font-size: 1rem; }
+	/* Hide non-essential columns on mobile */
+	.cart-thead { display: none; }
+	.column-sm-view { display: none !important; }
+	.cart-table { font-size: 0.95rem; }
+	/* Buttons stack full-width on mobile */
+	.place-order .btn,
+	.place-order-container .btn,
+	.cart-empty .btn { width: 100%; margin-bottom: .5rem; }
+	/* Coupon input and button stack */
+	.cart-payment-addresses .row.no-gutters { flex-direction: column; }
+	.cart-payment-addresses .txtcoupon { width: 100% !important; margin-right: 0 !important; margin-bottom: .5rem; }
+	.cart-payment-addresses .bt-coupon { width: 100%; }
+}
+
+/* Ensure horizontal scroll for wider tables */
+.table-responsive { overflow-x: auto; }
+</style>
+{% endblock %}
 
 {% if doc.items %}
 <div class="cart-container">
@@ -21,8 +46,9 @@
 				<div class="cart-items-header">
 					{{ _('Items') }}
 				</div>
+				<div class="table-responsive">
 				<table class="table mt-3 cart-table">
-					<thead>
+					<thead class="cart-thead">
 						<tr>
 							<th class="item-column">{{ _('Item') }}</th>
 							<th width="20%">{{ _('Quantity') }}</th>
@@ -42,9 +68,10 @@
 						</tfoot>
 					{% endif %}
 				</table>
+				</div>
 
 				<div class="row mt-2">
-					<div class="col-3">
+					<div class="col-12 col-md-3">
 						{% if cart_settings.enable_checkout %}
 							<a class="btn btn-primary-light font-md" href="/orders">
 								{{ _('Past Orders') }}
@@ -55,7 +82,7 @@
 							</a>
 						{% endif %}
 					</div>
-					<div class="col-9">
+					<div class="col-12 col-md-9">
 						{% if doc.items %}
 						<div class="place-order-container">
 							<a class="btn btn-primary-light mr-2 font-md" href="/all-products">
