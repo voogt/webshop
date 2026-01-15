@@ -80,7 +80,9 @@ function update_cart_ajax (opts) {
 			shopping_cart.set_cart_count(true);
 			if (opts.callback) opts.callback(r);
 			// Reload page after cart update
-			window.location.reload();
+			if(window.location.pathname.includes('/cart')){
+				window.location.reload();
+			}
         },
     });
 }
@@ -171,7 +173,9 @@ $.extend(shopping_cart, {
 					shopping_cart.set_cart_count(true);
 					if (opts.callback) opts.callback(r);
 					// Reload page after cart update
-					window.location.reload();
+					if(window.location.pathname.includes('/cart')){
+						window.location.reload();
+					}
 				},
 			});
 		}
@@ -296,8 +300,6 @@ $.extend(shopping_cart, {
 				item_code,
 				qty: 1
 			});
-
-			window.location.reload();
 
 		});
 	},
