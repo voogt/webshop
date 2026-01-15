@@ -92,9 +92,18 @@ def place_order():
 	cart_settings = frappe.get_cached_doc("Webshop Settings")
 	quotation.company = cart_settings.company
 
+	# Save any changes to the Quotation
 	quotation.flags.ignore_permissions = True
-	quotation.submit()
-
+	try:
+		quotation.save()
+		# Fetch the latest Quotation from the database immediately before submit
+		latest_quotation = frappe.get_doc("Quotation", quotation.name)
+		latest_quotation.flags.ignore_permissions = True
+		latest_quotation.submit()
+		quotation = latest_quotation
+	except frappe.exceptions.TimestampMismatchError:
+		# Suppress the error and continue with the latest available Quotation
+		quotation = frappe.get_doc("Quotation", quotation.name)
 	if quotation.quotation_to == "Lead" and quotation.party_name:
 		# company used to create customer accounts
 		frappe.defaults.set_user_default("company", quotation.company)

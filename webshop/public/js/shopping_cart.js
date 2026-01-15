@@ -76,9 +76,11 @@ function update_cart_ajax (opts) {
         },
         btn: opts.btn,
         callback: function (r) {
-            shopping_cart.unfreeze();
-            shopping_cart.set_cart_count(true);
-            if (opts.callback) opts.callback(r);
+			shopping_cart.unfreeze();
+			shopping_cart.set_cart_count(true);
+			if (opts.callback) opts.callback(r);
+			// Reload page after cart update
+			window.location.reload();
         },
     });
 }
@@ -168,6 +170,8 @@ $.extend(shopping_cart, {
 					shopping_cart.unfreeze();
 					shopping_cart.set_cart_count(true);
 					if (opts.callback) opts.callback(r);
+					// Reload page after cart update
+					window.location.reload();
 				},
 			});
 		}
@@ -208,7 +212,6 @@ $.extend(shopping_cart, {
 			$(".cart-table").after(intermediate_empty_cart_msg);
 		}
 		else {
-			console.log("show cart");
 			$cart.css("display", "inline");
 			$("#cart-count").text(cart_count);
 			// Ensure previously hidden sections are shown again when cart has items
@@ -293,6 +296,8 @@ $.extend(shopping_cart, {
 				item_code,
 				qty: 1
 			});
+
+			window.location.reload();
 
 		});
 	},

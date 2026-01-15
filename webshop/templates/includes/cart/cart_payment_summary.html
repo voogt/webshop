@@ -312,31 +312,5 @@
 
 </script>
 
-<script>
-	// Function to remove the element with id "freeze" if it exists
-	function removeFreezeElement() {
-		const freezeElement = document.getElementById('freeze');
-		if (freezeElement) {
-			freezeElement.remove();
-		}
-	}
-
-	// Create an observer instance linked to the callback function
-	const observer = new MutationObserver((mutationsList) => {
-		for (const mutation of mutationsList) {
-			if (mutation.type === 'childList') {
-				removeFreezeElement();
-			}
-		}
-	});
-
-	// Options for the observer (which mutations to observe)
-	const config = { childList: true, subtree: true };
-
-	// Start observing the document body for configured mutations
-	observer.observe(document.body, config);
-
-	// Initial check in case the element already exists when the script runs
-	removeFreezeElement();
-
-</script>
+<script src="/assets/webshop/js/cart_freeze_observer.js"></script>
+<script src="/assets/webshop/js/place_order_delegate.js"></script>
