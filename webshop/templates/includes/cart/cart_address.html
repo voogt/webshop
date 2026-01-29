@@ -11,7 +11,7 @@
 	}
 </style>
 
-<div class="mb-3 frappe-card p-5" data-section="shipping-address" id="shipping_addres_info_container">
+<!-- <div class="mb-3 frappe-card p-5" data-section="shipping-address" id="shipping_addres_info_container">
 	<div class="d-flex">
 		<div class="col-6 address-header"><h6>{{ _("Shipping Address") }}</h6></div>
 		<div class="col-6" style="padding: 0;">
@@ -29,15 +29,15 @@
 	</div>
 	{% endif %}
 	{% endfor %}
-</div>
+</div> -->
 
 <!-- Billing Address -->
-<div class="checkbox ml-1 mb-2">
+<!-- <div class="checkbox ml-1 mb-2">
 	<label for="input_same_billing">
 		<input type="checkbox" class="product-filter" id="input_same_billing" checked style="width: 14px !important">
 		<span class="label-area font-md">{{ _('Billing Address is same as Shipping Address') }}</span>
 	</label>
-</div>
+</div> -->
 
 
 <div class="mb-3 frappe-card p-5" data-section="billing-address" id="billing_addres_info_container">
@@ -130,7 +130,6 @@ frappe.ready(() => {
 					fieldtype: 'Select',
 					options: [
 						'Billing',
-						'Shipping'
 					],
 					reqd: 1
 				},
