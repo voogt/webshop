@@ -140,19 +140,19 @@ frappe.ready(() => {
 				},
 				{
 					fieldname: "phone",
-					fieldtype: "Phone",
+					fieldtype: "Data",
 					label: "Phone",
 					reqd: 1
 				},
 			],
 			primary_action_label: __('Save'),
 			primary_action: (values) => {
-				// const phoneRegex = /^\+?[1-9]\d{1,10}$/; // E.164 format (international standard)
+				const phoneRegex = /^\+?[1-9]\d{9,14}$/; // E.164 format: min 10, max 15 digits
 
-				// if (!phoneRegex.test(values.phone)) {
-				// 	frappe.msgprint(__('Please enter a valid phone number.'));
-				// 	return;
-				// }
+				if (!phoneRegex.test(values.phone)) {
+					frappe.msgprint(__('Please enter a valid phone number.'));
+					return;
+				}
 				frappe.call('webshop.webshop.shopping_cart.cart.add_new_address', { doc: values })
 					.then(r => {
 						frappe.call({
