@@ -149,10 +149,10 @@ frappe.ready(() => {
 			primary_action: (values) => {
 				const phoneRegex = /^\+?[1-9]\d{9,14}$/; // E.164 format: min 10, max 15 digits
 
-				if (!phoneRegex.test(values.phone)) {
-					frappe.msgprint(__('Please enter a valid phone number.'));
-					return;
-				}
+				//if (!phoneRegex.test(values.phone)) {
+				//	frappe.msgprint(__('Please enter a valid phone number.'));
+				//	return;
+				//}
 				frappe.call('webshop.webshop.shopping_cart.cart.add_new_address', { doc: values })
 					.then(r => {
 						frappe.call({
