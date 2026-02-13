@@ -242,7 +242,8 @@
 			tax_id: values.tax_id,
 			items: cartData.items,
 			message_for_recipient: values.message,
-			company: "Kartoza (Pty) Ltd"
+			company: "Kartoza (Pty) Ltd",
+			payment_terms_template: "30 Days Credit"
 		};
 
 		// Create the Quotation
@@ -278,26 +279,51 @@
 								}];
 							}
 
-							// Save the updated quotation with taxes
 							frappe.call({
-								method: 'frappe.client.save',
-								args: {
-									doc: updated_quotation
-								},
-								callback: function(save_response) {
-									frappe.msgprint(__('Quotation has been created successfully.'));
-									const quotation_url = '/proforma-quotations/' + updated_quotation.name;
-									window.location.href = quotation_url;
-								}
-							});
+							method: 'frappe.client.save',
+							args: {
+								doc: updated_quotation
+							},
+							callback: function(save_response) {
+								// After saving, submit the document
+								frappe.call({
+									method: 'frappe.client.submit',
+									args: {
+										doc: save_response.message // the saved document returned by save
+									},
+									callback: function(submit_response) {
+										frappe.msgprint(__('Quotation has been created and submitted successfully.'));
+										const quotation_url = '/quotations/' + save_response.message.name;
+										window.location.href = quotation_url;
+									},
+									error: function(err) {
+										frappe.msgprint(__('Error submitting the quotation: ' + err.message));
+									}
+								});
+							},
+							error: function(err) {
+								frappe.msgprint(__('Error saving the quotation: ' + err.message));
+							}
+						});
 						}
 					});
 				}
 
 				else{
-					frappe.msgprint(__('Quotation has been created successfully.'));
-					const quotation_url = '/proforma-quotations/' + quotation.name;
-					window.location.href = quotation_url;
+					frappe.call({
+						method: 'frappe.client.submit',
+						args: {
+							doc: quotation // the saved document returned by save
+						},
+						callback: function(submit_response) {
+							frappe.msgprint(__('Quotation has been created and submitted successfully.'));
+							const quotation_url = '/quotations/' + save_response.message.name;
+							window.location.href = quotation_url;
+						},
+						error: function(err) {
+							frappe.msgprint(__('Error submitting the quotation: ' + err.message));
+						}
+					});
 				}
 			}
 		}
