@@ -197,6 +197,15 @@ def update_cart(item_code, qty, additional_notes=None, with_items=False):
 			quotation_items[0].warehouse = warehouse
 			quotation_items[0].additional_notes = additional_notes
 
+	# Portal customers browse products via the public Website Item wrapper and
+	# are not expected to hold Item doctype permissions. apply_cart_settings
+	# recalculates pricing for every row via ERPNext's get_item_details, which
+	# reads the raw Item doc and enforces its read permission directly, so
+	# pre-warm the per-request doc cache with permissions bypassed before that
+	# runs (frappe.get_cached_doc returns this same instance within the request).
+	for row in quotation.get("items", []):
+		frappe.get_cached_doc("Item", row.item_code).flags.ignore_permissions = True
+
 	apply_cart_settings(quotation=quotation)
 
 	quotation.flags.ignore_permissions = True
@@ -392,6 +401,7 @@ def _get_cart_quotation(party=None):
 		},
 		order_by="modified desc",
 		limit_page_length=1,
+		ignore_permissions=True,
 	)
 
 	if quotation:
@@ -424,6 +434,20 @@ def _get_cart_quotation(party=None):
 
 	# ensure contact person (if any) actually belongs to the party to avoid validation errors
 	_ensure_contact_person_for_party(qdoc, party)
+
+	# Quotation.validate() always calls set_payment_schedule(), which unconditionally resolves
+	# party_account_currency via get_party_account_currency() -> get_party_account() -> a
+	# frappe.has_permission("Account", ...) check against the *session user*. That check is
+	# not affected by qdoc.flags.ignore_permissions, and portal/website users never have
+	# Account doctype permissions, so every quotation.save()/submit() in this cart flow throws
+	# "User don't have permissions to select/read this account." Quotation has no real
+	# party_account_currency field, but Document.get() reads straight off __dict__, so
+	# pre-seeding it here short-circuits that lookup before it ever runs.
+	if not qdoc.get("party_account_currency"):
+		qdoc.party_account_currency = frappe.get_cached_value(
+			"Company", qdoc.company, "default_currency"
+		)
+
 	return qdoc
 
 
