@@ -19,6 +19,8 @@ def get_product_info_for_website(item_code, skip_quotation_creation=False):
 	Get product price / stock info for website
 	"""
 
+	print("get_product_info_for_website", item_code)
+
 	cart_settings = get_shopping_cart_settings()
 	if not cart_settings.enabled:
 		# return settings even if cart is disabled
@@ -60,6 +62,53 @@ def get_product_info_for_website(item_code, skip_quotation_creation=False):
 			stock_status = frappe._dict({"on_backorder": True})
 		else:
 			stock_status = get_web_item_qty_in_stock(item_code, "website_warehouse")
+
+	item = frappe.get_all(
+		"Item",
+		filters={"item_code": item_code, "disabled": 0},
+		fields=["name", "has_variants"]
+	)
+
+	print("ITEM", item)
+
+	for i in item:
+		if i.has_variants == 1:
+
+			variants = frappe.get_all(
+				"Item",
+				filters={"variant_of": item_code, "disabled": 0},
+				fields=["name"]
+			)
+			variant_names = [v["name"] for v in variants]
+			if not variant_names:
+				continue
+
+			webshop_settings = frappe.get_single("Webshop Settings")
+
+			# Fetch prices for all variants
+			prices_arr = frappe.get_all(
+				"Item Price",
+				filters={"item_code": ["in", variant_names], "price_list": webshop_settings.price_list},
+				fields=["price_list_rate", "currency"]
+			)
+			currency = prices_arr[0]["currency"] if prices_arr else "ZAR"
+			symbol = frappe.db.get_value("Currency", currency, "symbol") or "R"
+			
+			price_set = set(p["price_list_rate"] for p in prices_arr)
+			if len(price_set) == 1:
+				# All variants have the same price, add formatted_price
+				price_pop = price_set.pop()
+				# Format price (assuming ZAR, can be adjusted)
+				if price_pop:
+					price = {
+						'price_list_rate': price_pop, 
+						'currency': currency, 
+						'formatted_price': f'{symbol} {price_pop:.2f}', 
+						'currency_symbol': symbol, 
+						'formatted_price_sales_uom': f'{symbol} {price_pop:.2f}'
+					}
+
+	print("PRICE", price)
 
 	product_info = {
 		"price": price,

@@ -1,8 +1,38 @@
 {% if shopping_cart and shopping_cart.cart_settings.enabled %}
 {% set cart_settings = shopping_cart.cart_settings %}
+{% set product_info = shopping_cart.product_info %}
 
 <div class="mt-5 mb-6">
 	{% if cart_settings.enable_variants | int %}
+	<!-- Price and Availability -->
+
+	{% if cart_settings.show_price and product_info.price %}
+		{% set price_info = product_info.price %}
+
+		<div class="product-price" itemprop="offers" itemscope itemtype="https://schema.org/AggregateOffer">
+			<!-- Final Price -->
+			{% if price_info.formatted_mrp %}
+				<span itemprop="lowPrice" content="{{ price_info.formatted_price_sales_uom }}">{{ price_info.formatted_price_sales_uom }}</span>
+			{% else %}
+				<span itemprop="highPrice" content="{{ price_info.formatted_price_sales_uom }}">{{ price_info.formatted_price_sales_uom }}</span>
+			{% endif %}
+
+			<!-- Striked Price and Discount  -->
+			{% if price_info.formatted_mrp %}
+				<small itemprop="highPrice" class="formatted-price">
+					<s>MRP {{ price_info.formatted_mrp }}</s>
+				</small>
+				<small class="ml-1 formatted-price in-green">
+					-{{ price_info.get("formatted_discount_percent") or price_info.get("formatted_discount_rate")}}
+				</small>
+			{% endif %}
+
+			<!-- Price per UOM -->
+			<small class="formatted-price ml-2">
+				({{ price_info.formatted_price }} / {{ product_info.uom }})
+			</small>
+		</div>
+	{% endif %}
 	<button class="btn btn-primary-light btn-configure font-md mr-2"
 		data-item-code="{{ doc.item_code }}"
 		data-item-name="{{ doc.web_item_name }}"

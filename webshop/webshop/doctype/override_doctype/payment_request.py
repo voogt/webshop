@@ -31,6 +31,8 @@ class PaymentRequest(OriginalPaymentRequest):
         success_url = cart_settings.payment_success_url
         redirect_to = get_url("/orders/{0}".format(self.reference_name))
 
+        print("PAYMENT SUCCESS URL:", success_url)
+
         if success_url:
             redirect_to = (
                 {

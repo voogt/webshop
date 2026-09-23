@@ -193,7 +193,7 @@
 
 	{% if (item.available and settings.show_stock_availability) or (not settings.show_stock_availability) %}
 		<!-- Show move to cart button if in stock or if showing stock availability is disabled -->
-		<button data-item-code="{{ item.item_code}}"
+		<button data-item-code="{{ item.item_code}}" id="btn-add-to-cart-list"
 			class="btn btn-primary btn-add-to-cart-list btn-add-to-cart mt-2 w-100">
 			<span class="mr-2">
 				<svg class="icon icon-md">

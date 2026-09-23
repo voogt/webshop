@@ -75,6 +75,38 @@ def get_product_filter_data(query_args=None):
 		filter_engine = ProductFiltersBuilder()
 		filters["discount_filters"] = filter_engine.get_discount_filters(discounts)
 
+	for item in result["items"]:
+		# If item has variants, fetch all variants and check price list
+		if item.get("has_variants"):
+			# Fetch all variants for this item
+			variants = frappe.get_all(
+				"Item",
+				filters={"variant_of": item["item_code"], "disabled": 0},
+				fields=["name"]
+			)
+			variant_names = [v["name"] for v in variants]
+			if not variant_names:
+				continue
+
+			webshop_settings = frappe.get_single("Webshop Settings")
+
+			# Fetch prices for all variants
+			prices = frappe.get_all(
+				"Item Price",
+				filters={"item_code": ["in", variant_names], "price_list": webshop_settings.price_list},
+				fields=["price_list_rate", "currency"]
+			)
+
+			currency = prices[0]["currency"] if prices else "ZAR"
+			symbol = frappe.db.get_value("Currency", currency, "symbol") or "R"
+
+			price_set = set(p["price_list_rate"] for p in prices)
+			if len(price_set) == 1:
+				# All variants have the same price, add formatted_price
+				price = price_set.pop()
+				# Format price (assuming ZAR, can be adjusted)
+				item["formatted_price"] = f"{symbol} {price:.2f}"
+
 	return {
 		"items": result["items"] or [],
 		"filters": filters,

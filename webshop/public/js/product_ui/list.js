@@ -41,7 +41,7 @@ webshop.ProductList = class {
 
 		if (image) {
 			image_html += `
-				<div class="col-2 border text-center rounded list-image">
+				<div class="col-md-2 border text-center rounded list-image image-product-container">
 					<a class="product-link product-list-link" href="/${ item.route || '#' }">
 						<img itemprop="image" class="website-image h-100 w-100" alt="${ title }"
 							src="${ image }">
@@ -96,6 +96,7 @@ webshop.ProductList = class {
 	}
 
 	get_item_details(item, settings) {
+		console.log("ITEM", item);
 		let details = `
 			<p class="product-code">
 				${ item.item_group } | Item Code : ${ item.item_code }
@@ -163,48 +164,13 @@ webshop.ProductList = class {
 	}
 
 	get_primary_button(item, settings) {
-		if (item.has_variants) {
-			return `
-				<a href="/${ item.route || '#' }">
-					<div class="btn btn-sm btn-explore-variants btn mb-0 mt-0">
-						${ __('Explore') }
-					</div>
-				</a>
-			`;
-		} else if (settings.enabled && (settings.allow_items_not_in_stock || item.in_stock)) {
-			return `
-				<div id="${ item.name }" class="btn
-					btn-sm btn-primary btn-add-to-cart-list mb-0
-					${ item.in_cart ? 'hidden' : '' }"
-					data-item-code="${ item.item_code }"
-					style="margin-top: 0px !important; max-height: 30px; float: right;
-						padding: 0.25rem 1rem; min-width: 135px;">
-					<span class="mr-2">
-						<svg class="icon icon-md">
-							<use href="#icon-assets"></use>
-						</svg>
-					</span>
-					${ settings.enable_checkout ? __('Add to Cart') :  __('Add to Quote') }
+		return `
+			<a href="/${item.route || "#"}">
+				<div class="btn btn-sm btn-explore-variants btn mb-0 mt-0">
+					${__("Explore")}
 				</div>
-
-				<div class="cart-indicator list-indicator ${item.in_cart ? '' : 'hidden'}">
-					1
-				</div>
-
-				<a href="/cart">
-					<div id="${ item.name }" class="btn
-						btn-sm btn-primary btn-add-to-cart-list
-						ml-4 go-to-cart mb-0 mt-0
-						${ item.in_cart ? '' : 'hidden' }"
-						data-item-code="${ item.item_code }"
-						style="padding: 0.25rem 1rem; min-width: 135px;">
-						${ settings.enable_checkout ? __('Go to Cart') :  __('Go to Quote') }
-					</div>
-				</a>
-			`;
-		} else {
-			return ``;
-		}
+			</a>
+		`;
 	}
 
 };

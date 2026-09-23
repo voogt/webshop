@@ -38,6 +38,8 @@ $.extend(shopping_cart, {
 			var item_code = $(this).attr("data-item-code");
 			var newVal = $(this).val();
 			shopping_cart.shopping_cart_update({item_code, qty: newVal});
+			console.log("changed qty");
+			window.location.reload();
 		});
 
 		$(".cart-items").on('click', '.number-spinner button', function () {

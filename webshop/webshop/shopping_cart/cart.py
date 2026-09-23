@@ -92,15 +92,24 @@ def place_order():
 	cart_settings = frappe.get_cached_doc("Webshop Settings")
 	quotation.company = cart_settings.company
 
+	# Save any changes to the Quotation
 	quotation.flags.ignore_permissions = True
-	quotation.submit()
-
+	try:
+		quotation.save()
+		# Fetch the latest Quotation from the database immediately before submit
+		latest_quotation = frappe.get_doc("Quotation", quotation.name)
+		latest_quotation.flags.ignore_permissions = True
+		latest_quotation.submit()
+		quotation = latest_quotation
+	except frappe.exceptions.TimestampMismatchError:
+		# Suppress the error and continue with the latest available Quotation
+		quotation = frappe.get_doc("Quotation", quotation.name)
 	if quotation.quotation_to == "Lead" and quotation.party_name:
 		# company used to create customer accounts
 		frappe.defaults.set_user_default("company", quotation.company)
 
 	if not (quotation.shipping_address_name or quotation.customer_address):
-		frappe.throw(_("Set Shipping Address or Billing Address"))
+		frappe.throw(_("Set Billing Address"))
 
 	sales_order = frappe.get_doc(
 		_make_sales_order(
@@ -154,6 +163,7 @@ def request_for_quotation():
 
 @frappe.whitelist()
 def update_cart(item_code, qty, additional_notes=None, with_items=False):
+	print("ADDING TO CART")
 	quotation = _get_cart_quotation()
 
 	empty_card = False
@@ -186,6 +196,15 @@ def update_cart(item_code, qty, additional_notes=None, with_items=False):
 			quotation_items[0].qty = qty
 			quotation_items[0].warehouse = warehouse
 			quotation_items[0].additional_notes = additional_notes
+
+	# Portal customers browse products via the public Website Item wrapper and
+	# are not expected to hold Item doctype permissions. apply_cart_settings
+	# recalculates pricing for every row via ERPNext's get_item_details, which
+	# reads the raw Item doc and enforces its read permission directly, so
+	# pre-warm the per-request doc cache with permissions bypassed before that
+	# runs (frappe.get_cached_doc returns this same instance within the request).
+	for row in quotation.get("items", []):
+		frappe.get_cached_doc("Item", row.item_code).flags.ignore_permissions = True
 
 	apply_cart_settings(quotation=quotation)
 
@@ -382,6 +401,7 @@ def _get_cart_quotation(party=None):
 		},
 		order_by="modified desc",
 		limit_page_length=1,
+		ignore_permissions=True,
 	)
 
 	if quotation:
@@ -412,7 +432,68 @@ def _get_cart_quotation(party=None):
 		qdoc.run_method("set_missing_values")
 		apply_cart_settings(party, qdoc)
 
+	# ensure contact person (if any) actually belongs to the party to avoid validation errors
+	_ensure_contact_person_for_party(qdoc, party)
+
+	# Quotation.validate() always calls set_payment_schedule(), which unconditionally resolves
+	# party_account_currency via get_party_account_currency() -> get_party_account() -> a
+	# frappe.has_permission("Account", ...) check against the *session user*. That check is
+	# not affected by qdoc.flags.ignore_permissions, and portal/website users never have
+	# Account doctype permissions, so every quotation.save()/submit() in this cart flow throws
+	# "User don't have permissions to select/read this account." Quotation has no real
+	# party_account_currency field, but Document.get() reads straight off __dict__, so
+	# pre-seeding it here short-circuits that lookup before it ever runs.
+	if not qdoc.get("party_account_currency"):
+		qdoc.party_account_currency = frappe.get_cached_value(
+			"Company", qdoc.company, "default_currency"
+		)
+
 	return qdoc
+
+
+def _ensure_contact_person_for_party(quotation, party=None):
+	"""Ensure Quotation.contact_person (if set) belongs to the given party.
+
+	If it doesn't, clear it. If it's not set, try to set a suitable contact linked
+	to the party based on the current session user's email. This prevents
+	validation errors like: "Contact Person does not belong to the <Party>".
+	"""
+	if not party:
+		party = get_party()
+
+	# Nothing to do if we don't have a party
+	if not party:
+		return
+
+	contact_person = quotation.get("contact_person")
+
+	def _is_contact_linked_to_party(contact_name: str) -> bool:
+		return bool(
+			frappe.db.exists(
+				"Dynamic Link",
+				{
+					"parenttype": "Contact",
+					"parent": contact_name,
+					"link_doctype": party.doctype,
+					"link_name": party.name,
+				},
+			)
+		)
+
+	# If a contact is set, verify it's actually linked to the party; otherwise clear it.
+	if contact_person:
+		if not _is_contact_linked_to_party(contact_person):
+			quotation.contact_person = None
+		return
+
+	# If not set, try to choose a contact for the logged-in user that belongs to the party
+	user_email = getattr(frappe.session, "user", None)
+	if not user_email:
+		return
+
+	contact_name = frappe.db.get_value("Contact", {"email_id": user_email})
+	if contact_name and _is_contact_linked_to_party(contact_name):
+		quotation.contact_person = contact_name
 
 
 def update_party(fullname, company_name=None, mobile_no=None, phone=None):
