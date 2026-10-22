@@ -229,7 +229,10 @@
     });
 
     function create_quotation(customer_name, values, cartData, tax_template, country) {
-		const quotationData = {
+		frappe.call({
+			method: 'kartoza_custom.api.get_storefront_payment_terms_template',
+			callback: function(terms_response) {
+				const quotationData = {
 			doctype: 'Quotation',
 			quotation_to: 'Customer',
 			owner: frappe.session.user,
@@ -243,7 +246,7 @@
 			items: cartData.items,
 			message_for_recipient: values.message,
 			company: "Kartoza (Pty) Ltd",
-			payment_terms_template: "30 Days Credit"
+			payment_terms_template: terms_response.message
 		};
 
 		// Create the Quotation
@@ -326,8 +329,9 @@
 					});
 				}
 			}
-		}
-	});
+		});
+			}
+		});
 	}
 
     function validateEmail(email) {
