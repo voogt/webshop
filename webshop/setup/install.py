@@ -188,7 +188,23 @@ def add_custom_fields():
 				"options": "Website Attribute",
 				"insert_after": "filter_fields",
 			},
-		]
+		],
+		"Selling Settings": [
+			{
+				"fieldname": "cart_reminder_section",
+				"fieldtype": "Section Break",
+				"label": "Cart Reminder",
+				"insert_after": "set_zero_rate_for_expired_batch",
+			},
+			{
+				"default": "0",
+				"description": "Send a reminder email to customers who have left items in their shopping cart for more than a day.",
+				"fieldname": "enable_cart_reminder_emails",
+				"fieldtype": "Check",
+				"label": "Send Cart Reminder Emails",
+				"insert_after": "cart_reminder_section",
+			},
+		],
 	}
 
 	frappe.make_property_setter(
